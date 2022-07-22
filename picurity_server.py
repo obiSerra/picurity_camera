@@ -1,21 +1,14 @@
 #!/usr/bin/python3
 
-
 from flask import Flask
-
-
-
-
-
-
 
 
 app = Flask(__name__)
 
+
 @app.route("/")         # This is our default handler, if no path is given
 def index():
     return "hello"
-
 
 
 if __name__ == "__main__":
