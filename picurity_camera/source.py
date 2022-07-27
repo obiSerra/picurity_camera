@@ -105,7 +105,6 @@ class PicameraSource(Source):
 
 
 def source_factory(config) -> Source:
-    config = SourceConfig()
     return WebcamSource(config)
     # if picamera_enabled:
     #     config.vflip = True

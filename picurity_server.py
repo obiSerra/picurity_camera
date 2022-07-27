@@ -7,12 +7,12 @@ from flask import Flask, Response
 from flask import Flask
 from flask import render_template
 
-from picurity_camera.source import source_factory, SourceConfig, SourceError, WebcamSource
+from picurity_camera.source import source_factory, SourceConfig, SourceError
 
 app = Flask(__name__)
 
 
-source = source_factory()
+source = source_factory(SourceConfig())
 
 
 def gather_img():
