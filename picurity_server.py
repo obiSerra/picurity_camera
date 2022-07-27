@@ -12,7 +12,7 @@ from picurity_camera.source import source_factory, SourceConfig, SourceError, We
 app = Flask(__name__)
 
 
-source = source_factory(WebcamSource())
+source = source_factory()
 
 
 def gather_img():
