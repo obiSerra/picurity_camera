@@ -7,7 +7,7 @@ from flask import Flask, Response
 from flask import Flask
 from flask import render_template
 
-from picurity_camera.source import source_factory, SourceConfig
+from picurity_camera.source import source_factory, SourceConfig, SourceError
 
 app = Flask(__name__)
 
@@ -20,6 +20,15 @@ def gather_img():
         time.sleep(0.1)
         frame = source.get_frame()
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame.tobytes() + b'\r\n')
+
+
+@app.route('/capture')
+def capture():
+    try:
+        source.capture_video()
+    except SourceError as e:
+        return "ERROR " + e.message
+    return "OK"
 
 
 @app.route("/mjpeg")

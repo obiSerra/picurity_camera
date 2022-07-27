@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+import time
+from datetime import datetime
 
 
 import logging
@@ -10,6 +12,8 @@ picamera_enabled = False
 try:
     #    my_module = importlib.import_module('os.path')
     from picamera2 import Picamera2
+    from picamera2.encoders import H264Encoder
+    from picamera2.outputs import FfmpegOutput
     import libcamera
     picamera_enabled = True
 except ModuleNotFoundError as e:
@@ -24,6 +28,12 @@ class SourceConfig:
     hflip: bool = False
 
 
+class SourceError(Exception):
+    def __init__(self, message):
+        self.message = message
+        super().__init__(message)
+
+
 class Source(ABC):
     @abstractmethod
     def __init__(self, config: SourceConfig):
@@ -31,6 +41,10 @@ class Source(ABC):
 
     @abstractmethod
     def get_frame(self):
+        pass
+
+    @abstractmethod
+    def capture_video(self):
         pass
 
     @staticmethod
@@ -48,6 +62,10 @@ class WebcamSource(Source):
     def get_frame(self):
         _, img = self.cam.read()
         return self._encode_as_jpg(img)
+
+    def capture_video(self):
+        logging.error("capture_video not supported by WebcamSource")
+        raise(SourceError("capture_video not supported by WebcamSource"))
 
 
 class PicameraSource(Source):
@@ -67,6 +85,17 @@ class PicameraSource(Source):
     def get_frame(self):
         img = self.picam2.capture_array()
         return self._encode_as_jpg(img)
+
+    def capture_video(self, video_name=""):
+        video_config = self.picam2.create_video_configuration()
+        self.picam2.configure(video_config)
+
+        encoder = H264Encoder(10000000)
+        output = FfmpegOutput(f"video_name={datetime.now()}.mp4")
+
+        self.picam2.start_recording(encoder, output)
+        time.sleep(10)
+        self.picam2.stop_recording()
 
 
 def source_factory(config) -> Source:
