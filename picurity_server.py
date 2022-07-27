@@ -7,15 +7,18 @@ from flask import Flask, Response
 from flask import Flask
 from flask import render_template
 
-from picurity_camera.stream import capture_video
+from picurity_camera.source import source_factory, SourceConfig
 
 app = Flask(__name__)
+
+
+source = source_factory(SourceConfig())
 
 
 def gather_img():
     while True:
         time.sleep(0.1)
-        frame = capture_video()
+        frame = source.get_frame()
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame.tobytes() + b'\r\n')
 
 
