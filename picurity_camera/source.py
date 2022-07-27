@@ -39,18 +39,20 @@ class Source(ABC):
     def __init__(self, config: SourceConfig):
         pass
 
-    @abstractmethod
     def get_frame(self):
-        pass
-
-    @abstractmethod
-    def capture_video(self):
-        pass
+        return self._encode_as_jpg(self._get_frame_raw())
 
     @staticmethod
     def _encode_as_jpg(img):
         _, frame = cv2.imencode('.jpg', img)
         return frame
+
+    @abstractmethod
+    def _get_frame_raw(self):
+        pass
+
+    def capture_video(self):
+        pass
 
 
 class WebcamSource(Source):
@@ -58,14 +60,30 @@ class WebcamSource(Source):
         self.cam = cv2.VideoCapture(0)
         self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, config.width)
         self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT, config.height)
+        self.config = config
 
-    def get_frame(self):
+    def _get_frame_raw(self):
         _, img = self.cam.read()
-        return self._encode_as_jpg(img)
+        return img
 
     def capture_video(self):
-        logging.error("capture_video not supported by WebcamSource")
-        raise(SourceError("capture_video not supported by WebcamSource"))
+        cap = self.cam
+        logging.warning(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        logging.warning(self.config.width)
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) + 0.5)
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) + 0.5)
+        size = (width, height)
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out = cv2.VideoWriter('output.avi', fourcc, 20.0, size)
+
+        try:
+            while(True):
+                frame = self._get_frame_raw()
+                out.write(frame)
+        except Exception:
+            cap.release()
+            out.release()
+            cv2.destroyAllWindows()
 
 
 class PicameraSource(Source):
@@ -82,20 +100,8 @@ class PicameraSource(Source):
         self.picam2.configure(capture_config)
         self.picam2.start()
 
-    def get_frame(self):
-        img = self.picam2.capture_array()
-        return self._encode_as_jpg(img)
-
-    def capture_video(self, video_name=""):
-        video_config = self.picam2.create_video_configuration()
-        self.picam2.configure(video_config)
-
-        encoder = H264Encoder(10000000)
-        output = FfmpegOutput(f"video_name={datetime.now()}.mp4")
-
-        self.picam2.start_recording(encoder, output)
-        time.sleep(10)
-        self.picam2.stop_recording()
+    def _get_frame_raw(self):
+        return self.picam2.capture_array()
 
 
 def source_factory(config) -> Source:
