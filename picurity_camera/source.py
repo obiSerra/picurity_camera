@@ -22,8 +22,8 @@ except ModuleNotFoundError as e:
 
 @dataclass
 class SourceConfig:
-    width: int = 320
-    height: int = 240
+    width: int = 640
+    height: int = 480
     vflip: bool = False
     hflip: bool = False
 
@@ -52,8 +52,8 @@ class Source(ABC):
         pass
 
     def capture_video(self):
-        width = int(self.config.width * 2)
-        height = int(self.config.height * 2)
+        width = int(self.config.width)
+        height = int(self.config.height)
         size = (width, height)
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         out = cv2.VideoWriter('output.avi', fourcc, 20.0, size)
@@ -63,7 +63,7 @@ class Source(ABC):
             while(True):
                 frame = self._get_frame_raw()
                 out.write(frame)
-                if int(time.time()) - start > 10:
+                if int(time.time()) - start > 5:
                     break
         except Exception:
             pass
