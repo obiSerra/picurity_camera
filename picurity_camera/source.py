@@ -35,8 +35,8 @@ class SourceError(Exception):
 
 
 class Source(ABC):
-    @abstractmethod
     def __init__(self, config: SourceConfig):
+        self.config = config
         pass
 
     def get_frame(self):
@@ -52,42 +52,42 @@ class Source(ABC):
         pass
 
     def capture_video(self):
-        pass
+        width = int(self.config.width * 2)
+        height = int(self.config.height * 2)
+        size = (width, height)
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out = cv2.VideoWriter('output.avi', fourcc, 20.0, size)
+        try:
+            logging.warning("start recording")
+            start = time.time()
+            while(True):
+                frame = self._get_frame_raw()
+                out.write(frame)
+                if int(time.time()) - start > 10:
+                    break
+        except Exception:
+            pass
+        finally:
+            logging.warning("done recording")
+            out.release()
+            cv2.destroyAllWindows()
 
 
 class WebcamSource(Source):
     def __init__(self, config: SourceConfig):
+        super().__init__(config)
         self.cam = cv2.VideoCapture(0)
         self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, config.width)
         self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT, config.height)
-        self.config = config
 
     def _get_frame_raw(self):
         _, img = self.cam.read()
         return img
 
-    def capture_video(self):
-        cap = self.cam
-        logging.warning(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        logging.warning(self.config.width)
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) + 0.5)
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) + 0.5)
-        size = (width, height)
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        out = cv2.VideoWriter('output.avi', fourcc, 20.0, size)
-
-        try:
-            while(True):
-                frame = self._get_frame_raw()
-                out.write(frame)
-        except Exception:
-            cap.release()
-            out.release()
-            cv2.destroyAllWindows()
-
 
 class PicameraSource(Source):
     def __init__(self, config: SourceConfig):
+        super().__init__(config)
         self.picam2 = Picamera2()
         capture_config = self.picam2.create_still_configuration(
             main={"format": 'XRGB8888',
@@ -105,10 +105,9 @@ class PicameraSource(Source):
 
 
 def source_factory(config) -> Source:
-    return WebcamSource(config)
-    # if picamera_enabled:
-    #     config.vflip = True
-    #     config.hflip = True
-    #     return PicameraSource(config)
-    # else:
-    #     return WebcamSource(config)
+    if picamera_enabled:
+        config.vflip = True
+        config.hflip = True
+        return PicameraSource(config)
+    else:
+        return WebcamSource(config)
