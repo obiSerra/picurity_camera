@@ -1,15 +1,33 @@
 #!/usr/bin/python3
-
+import time
+import numpy as np
+#import matplotlib.pyplot as plt
+import cv2
+from flask import Flask, Response
 from flask import Flask
+from flask import render_template
 
+from picurity_camera.stream import capture_video
 
 app = Flask(__name__)
 
 
+def gather_img():
+    while True:
+        time.sleep(0.1)
+        frame = capture_video()
+        yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame.tobytes() + b'\r\n')
+
+
+@app.route("/mjpeg")
+def mjpeg():
+    return Response(gather_img(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
 @app.route("/")         # This is our default handler, if no path is given
 def index():
-    return "hello"
+    return render_template('index.html')
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8080)
+    app.run(host='0.0.0.0', port=8080, threaded=True)
