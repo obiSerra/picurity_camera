@@ -25,6 +25,8 @@ class WebcamVideoStream:
 
         width = int(640)
         height = int(480)
+        width = int(self.stream.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(self.stream.get(cv2.CAP_PROP_FRAME_HEIGHT))
         size = (width, height)
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         self.out = cv2.VideoWriter('output.avi', fourcc, 20.0, size)

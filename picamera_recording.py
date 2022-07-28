@@ -1,5 +1,4 @@
 from threading import Thread
-from tkinter import W
 import cv2
 import time
 
@@ -12,7 +11,7 @@ config = (640, 480)
 
 
 class WebcamVideoStream:
-    def __init__(self, src=0):
+    def __init__(self, src='/dev/media3'):
         self.picam2 = Picamera2()
         capture_config = self.picam2.create_preview_configuration(
             main={"format": 'RGB888',
@@ -24,10 +23,12 @@ class WebcamVideoStream:
 
         self.picam2.configure(capture_config)
         self.picam2.start()
+        time.sleep(2)
         # initialize the video camera stream and read the first frame
         # from the stream
         w, h = config
         self.stream = cv2.VideoCapture(src)
+
         self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, w)
         self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
         (self.grabbed, self.frame) = self.stream.read()
@@ -42,10 +43,10 @@ class WebcamVideoStream:
         return self
 
     def start_recording(self):
-
-        width = int(640)
-        height = int(480)
-        size = (width, height)
+        width = int(self.stream.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(self.stream.get(cv2.CAP_PROP_FRAME_HEIGHT))
+#        width, height = config
+        size = (height, width)
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         self.out = cv2.VideoWriter('output.avi', fourcc, 20.0, size)
         self.recording = True
@@ -62,8 +63,8 @@ class WebcamVideoStream:
                 return
             # otherwise, read the next frame from the stream
             (self.grabbed, self.frame) = self.stream.read()
-            if self.recording:
-                self.out.write(self.frame)
+#            if self.recording:
+#                self.out.write(self.frame)
 
     def read(self):
         # return the frame most recently read
@@ -147,14 +148,3 @@ if __name__ == "__main__":
 #     def stop(self):
 #         # indicate that the thread should be stopped
 #         self.stopped = True
-
-
-if __name__ == "__main__":
-    web = PicameraVideoStream()
-    web.start()
-    time.sleep(2)
-    web.start_recording()
-    time.sleep(2)
-    web.stop_recording()
-    time.sleep(2)
-    web.stop()
