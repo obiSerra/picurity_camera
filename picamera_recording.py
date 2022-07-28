@@ -13,19 +13,21 @@ config = (320, 240)
 class PicameraVideoStream:
     def __init__(self, src=0):
         self.picam2 = Picamera2()
-        capture_config = self.picam2.create_video_configuration(
-            main={"format": 'XRGB8888',
+        capture_config = self.picam2.create_preview_configuration(
+            main={"format": 'RGB888',
                   "size": config})
-        capture_config["transform"] = libcamera.Transform(
-            hflip=int(1),
-            vflip=int(1)
-        )
+#        capture_config["transform"] = libcamera.Transform(
+#            hflip=int(1),
+#            vflip=int(1)
+#        )
 
         self.picam2.configure(capture_config)
         self.picam2.start()
         time.sleep(2)
-
         self.frame = self.picam2.capture_array()
+        w = 640
+        h = 480
+        self.frame = self.frame[:w * h].reshape(h, w, 3)
         # initialize the variable used to indicate if the thread should
         # be stopped
         self.stopped = False
@@ -45,7 +47,9 @@ class PicameraVideoStream:
         self.recording = True
 
     def stop_recording(self):
-        self.out.release()
+        if self.out is not None:
+            self.out.release()
+            self.out = None
         self.recording = False
 
     def update(self):
@@ -53,9 +57,12 @@ class PicameraVideoStream:
         while True:
             # if the thread indicator variable is set, stop the thread
             if self.stopped:
+                self.stop_recording()
                 return
             # otherwise, read the next frame from the stream
             self.frame = self.picam2.capture_array()
+            w, h = config
+            self.frame = self.frame[:w * h].reshape(h, w, 3)
             if self.recording:
                 self.out.write(self.frame)
 
@@ -73,6 +80,7 @@ if __name__ == "__main__":
     web.start()
     time.sleep(2)
     web.start_recording()
-    time.sleep(5)
+    time.sleep(2)
     web.stop_recording()
+    time.sleep(2)
     web.stop()
