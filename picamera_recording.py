@@ -7,13 +7,15 @@ from picamera2.encoders import H264Encoder
 from picamera2.outputs import FfmpegOutput
 import libcamera
 
+config = (320, 240)
+
 
 class PicameraVideoStream:
     def __init__(self, src=0):
         self.picam2 = Picamera2()
         capture_config = self.picam2.create_video_configuration(
             main={"format": 'XRGB8888',
-                  "size": (640, 480)})
+                  "size": config})
         capture_config["transform"] = libcamera.Transform(
             hflip=int(1),
             vflip=int(1)
@@ -36,8 +38,7 @@ class PicameraVideoStream:
 
     def start_recording(self):
 
-        width = int(640)
-        height = int(480)
+        width, height = config
         size = (width, height)
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         self.out = cv2.VideoWriter('output.avi', fourcc, 20.0, size)
