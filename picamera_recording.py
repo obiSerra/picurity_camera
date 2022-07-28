@@ -1,150 +1,44 @@
-from threading import Thread
-import cv2
+#!/usr/bin/python3
+
 import time
+from signal import pause
+
+import numpy as np
 
 from picamera2 import Picamera2
 from picamera2.encoders import H264Encoder
-from picamera2.outputs import FfmpegOutput
-import libcamera
+from picamera2.outputs import FileOutput
 
-config = (640, 480)
+lsize = (320, 240)
+picam2 = Picamera2()
+video_config = picam2.create_video_configuration(main={"size": (1280, 720), "format": "RGB888"},
+                                                 lores={"size": lsize, "format": "YUV420"})
+picam2.configure(video_config)
+encoder = H264Encoder(1000000)
+picam2.encoder = encoder
+picam2.start()
 
+w, h = lsize
+prev = None
+encoding = False
+ltime = 0
 
-class WebcamVideoStream:
-    def __init__(self, src='/dev/media3'):
-        self.picam2 = Picamera2()
-        capture_config = self.picam2.create_preview_configuration(
-            main={"format": 'RGB888',
-                  "size": config})
-#        capture_config["transform"] = libcamera.Transform(
-#            hflip=int(1),
-#            vflip=int(1)
-#        )
-
-        self.picam2.configure(capture_config)
-        self.picam2.start()
-        time.sleep(2)
-        # initialize the video camera stream and read the first frame
-        # from the stream
-        w, h = config
-        self.stream = cv2.VideoCapture(src)
-
-        self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, w)
-        self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
-        (self.grabbed, self.frame) = self.stream.read()
-        # initialize the variable used to indicate if the thread should
-        # be stopped
-        self.stopped = False
-        self.recording = False
-
-    def start(self):
-        # start the thread to read frames from the video stream
-        Thread(target=self.update, args=()).start()
-        return self
-
-    def start_recording(self):
-        width = int(self.stream.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(self.stream.get(cv2.CAP_PROP_FRAME_HEIGHT))
-#        width, height = config
-        size = (height, width)
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        self.out = cv2.VideoWriter('output.avi', fourcc, 20.0, size)
-        self.recording = True
-
-    def stop_recording(self):
-        self.out.release()
-        self.recording = False
-
-    def update(self):
-        # keep looping infinitely until the thread is stopped
-        while True:
-            # if the thread indicator variable is set, stop the thread
-            if self.stopped:
-                return
-            # otherwise, read the next frame from the stream
-            (self.grabbed, self.frame) = self.stream.read()
-#            if self.recording:
-#                self.out.write(self.frame)
-
-    def read(self):
-        # return the frame most recently read
-        return self.frame
-
-    def stop(self):
-        # indicate that the thread should be stopped
-        self.stopped = True
-
-
-if __name__ == "__main__":
-    web = WebcamVideoStream()
-    web.start()
-    time.sleep(2)
-    web.start_recording()
-    time.sleep(5)
-    web.stop_recording()
-    web.stop()
-
-
-# class PicameraVideoStream:
-#     def __init__(self, src=0):
-#         self.picam2 = Picamera2()
-#         capture_config = self.picam2.create_preview_configuration(
-#             main={"format": 'RGB888',
-#                   "size": config})
-# #        capture_config["transform"] = libcamera.Transform(
-# #            hflip=int(1),
-# #            vflip=int(1)
-# #        )
-
-#         self.picam2.configure(capture_config)
-#         self.picam2.start()
-#         time.sleep(2)
-#         self.frame = self.picam2.capture_array()
-#         w = 640
-#         h = 480
-#         self.frame = self.frame[:w * h].reshape(h, w, 3)
-#         # initialize the variable used to indicate if the thread should
-#         # be stopped
-#         self.stopped = False
-#         self.recording = False
-
-#     def start(self):
-#         # start the thread to read frames from the video stream
-#         Thread(target=self.update, args=()).start()
-#         return self
-
-#     def start_recording(self):
-
-#         width, height = config
-#         size = (width, height)
-#         fourcc = cv2.VideoWriter_fourcc(*'XVID')
-#         self.out = cv2.VideoWriter('output.avi', fourcc, 20.0, size)
-#         self.recording = True
-
-#     def stop_recording(self):
-#         if self.out is not None:
-#             self.out.release()
-#             self.out = None
-#         self.recording = False
-
-#     def update(self):
-#         # keep looping infinitely until the thread is stopped
-#         while True:
-#             # if the thread indicator variable is set, stop the thread
-#             if self.stopped:
-#                 self.stop_recording()
-#                 return
-#             # otherwise, read the next frame from the stream
-#             self.frame = self.picam2.capture_array()
-#             w, h = config
-#             self.frame = self.frame[:w * h].reshape(h, w, 3)
-#             if self.recording:
-#                 self.out.write(self.frame)
-
-#     def read(self):
-#         # return the frame most recently read
-#         return self.frame
-
-#     def stop(self):
-#         # indicate that the thread should be stopped
-#         self.stopped = True
+while True:
+    cur = picam2.capture_buffer("lores")
+    cur = cur[:w * h].reshape(h, w)
+    if prev is not None:
+        # Measure pixels differences between current and
+        # previous frame
+        mse = np.square(np.subtract(cur, prev)).mean()
+        if mse > 7:
+            if not encoding:
+                encoder.output = FileOutput("{}.h264".format(int(time.time())))
+                picam2.start_encoder()
+                encoding = True
+                print("New Motion", mse)
+            ltime = time.time()
+        else:
+            if encoding and time.time() - ltime > 2.0:
+                picam2.stop_encoder()
+                encoding = False
+    prev = cur
